@@ -1,17 +1,21 @@
 import React, { Component } from 'react';
 import PropTypes from 'prop-types';
 import { MdSettings, MdUndo, MdDirectionsRun } from 'react-icons/md';
-import { FaFile, FaMousePointer, FaPlus } from 'react-icons/fa';
+import { FaFile, FaMousePointer, FaPlus, FaDoorOpen} from 'react-icons/fa';
+import { GiBrickWall , GiDungeonGate } from "react-icons/gi";
 import ToolbarButton from './toolbar-button';
 import ToolbarSaveButton from './toolbar-save-button';
 import ToolbarLoadButton from './toolbar-load-button';
 import If from '../../utils/react-if';
+import generatePlan from '../../utils/generate-plan'
 import {
   MODE_IDLE,
   MODE_3D_VIEW,
   MODE_3D_FIRST_PERSON,
   MODE_VIEWING_CATALOG,
-  MODE_CONFIGURING_PROJECT
+  MODE_CONFIGURING_PROJECT,
+  MODE_WAITING_DRAWING_LINE,
+  MODE_DRAWING_HOLE
 } from '../../constants';
 import * as SharedStyle from '../../shared-style';
 
@@ -59,26 +63,59 @@ export default class Toolbar extends Component {
 
   constructor(props, context) {
     super(props, context);
-    this.state = {};
+    this.state = {
+      currentSelectedElement: {}
+    };
   }
 
-  shouldComponentUpdate(nextProps, nextState) {
-    return this.props.state.mode !== nextProps.state.mode ||
-      this.props.height !== nextProps.height ||
-      this.props.width !== nextProps.width ||
-      this.props.state.alterate !== nextProps.state.alterate;
+  // shouldComponentUpdate(nextProps, nextState) {
+  //   return this.props.state.mode !== nextProps.state.mode ||
+  //     this.props.height !== nextProps.height ||
+  //     this.props.width !== nextProps.width ||
+  //     this.props.state.alterate !== nextProps.state.alterate ||
+  //     this.state.currentSelectedElement !== nextState.currentSelectedElement
+  //     ;
+  // }
+
+  catalogQuickSelect(element) {
+    // clear current snaped element
+    this.context.projectActions.rollback()
+    // deselect all elements before selecting a new tool
+    this.context.projectActions.unselectAll()
+    switch (element['prototype']) {
+      case 'lines':
+        this.context.linesActions.selectToolDrawingLine(element['name']);
+        break;
+      case 'items':
+        this.context.itemsActions.selectToolDrawingItem(element['name']);
+        break;
+      case 'holes':
+        this.context.holesActions.selectToolDrawingHole(element['name']);
+        break;
+    }
+
+    this.context.projectActions.pushLastSelectedCatalogElementToHistory(element);
   }
 
   render() {
 
     let {
-      props: { state, width, height, toolbarButtons, allowProjectFileSupport },
+      props: { state, width, height, toolbarButtons, allowProjectFileSupport, catalog },
       context: { projectActions, viewer3DActions, translator }
     } = this;
-
     let mode = state.get('mode');
     let alterate = state.get('alterate');
+    let catalogList = catalog.elements;
+    let currentSelectedElement =
+    [...state.get('selectedElementsHistory').values()][0]
+    // this.setState({currentSelectedElement})
+    // let currentSelectedElement = []
     let alterateColor = alterate ? SharedStyle.MATERIAL_COLORS[500].orange : '';
+    // Catalog Quick select elements
+      let wallElement = catalogList['wall']
+      let gateElement = catalogList['gate']
+      let doorElement = catalogList['door']
+
 
     let sorter = [
       {
@@ -144,6 +181,34 @@ export default class Toolbar extends Component {
           tooltip={translator.t('Configure project')}
           onClick={event => projectActions.openProjectConfigurator()}>
           <MdSettings />
+        </ToolbarButton>
+      },
+      {
+        index: 9, condition: true, dom: <ToolbarButton
+          active={[MODE_WAITING_DRAWING_LINE].includes(mode)}
+          tooltip={'Wall'}
+          onClick={(e) => this.catalogQuickSelect(wallElement)}>
+          <GiBrickWall />
+        </ToolbarButton>
+      },
+      {
+        index: 10, condition: true, dom: <ToolbarButton
+          active={!!([MODE_DRAWING_HOLE].includes(mode)
+                  && currentSelectedElement &&
+                  currentSelectedElement.name === 'gate')}
+          tooltip={'Gate'}
+          onClick={(e) => this.catalogQuickSelect(gateElement)}>
+          <GiDungeonGate />
+        </ToolbarButton>
+      },
+      {
+        index: 11, condition: true, dom: <ToolbarButton
+          active={!!([MODE_DRAWING_HOLE].includes(mode)
+                  && currentSelectedElement &&
+                  currentSelectedElement.name === 'door')}
+          tooltip={'Door'}
+          onClick={(e) => this.catalogQuickSelect(doorElement)}>
+          <FaDoorOpen />
         </ToolbarButton>
       }
     ];
