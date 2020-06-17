@@ -7,7 +7,6 @@ import ToolbarButton from './toolbar-button';
 import ToolbarSaveButton from './toolbar-save-button';
 import ToolbarLoadButton from './toolbar-load-button';
 import If from '../../utils/react-if';
-import generatePlan from '../../utils/generate-plan'
 import {
   MODE_IDLE,
   MODE_3D_VIEW,

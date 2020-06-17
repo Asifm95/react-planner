@@ -2,6 +2,8 @@ var _createClass = function () { function defineProperties(target, props) { for 
 
 var _extends = Object.assign || function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; };
 
+function _toConsumableArray(arr) { if (Array.isArray(arr)) { for (var i = 0, arr2 = Array(arr.length); i < arr.length; i++) { arr2[i] = arr[i]; } return arr2; } else { return Array.from(arr); } }
+
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
 function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
@@ -11,12 +13,13 @@ function _inherits(subClass, superClass) { if (typeof superClass !== "function" 
 import React, { Component } from 'react';
 import PropTypes from 'prop-types';
 import { MdSettings, MdUndo, MdDirectionsRun } from 'react-icons/md';
-import { FaFile, FaMousePointer, FaPlus } from 'react-icons/fa';
+import { FaFile, FaMousePointer, FaPlus, FaDoorOpen } from 'react-icons/fa';
+import { GiBrickWall, GiDungeonGate } from "react-icons/gi";
 import ToolbarButton from './toolbar-button';
 import ToolbarSaveButton from './toolbar-save-button';
 import ToolbarLoadButton from './toolbar-load-button';
 import If from '../../utils/react-if';
-import { MODE_IDLE, MODE_3D_VIEW, MODE_3D_FIRST_PERSON, MODE_VIEWING_CATALOG, MODE_CONFIGURING_PROJECT } from '../../constants';
+import { MODE_IDLE, MODE_3D_VIEW, MODE_3D_FIRST_PERSON, MODE_VIEWING_CATALOG, MODE_CONFIGURING_PROJECT, MODE_WAITING_DRAWING_LINE, MODE_DRAWING_HOLE } from '../../constants';
 import * as SharedStyle from '../../shared-style';
 
 var iconTextStyle = {
@@ -81,33 +84,70 @@ var Toolbar = function (_Component) {
 
     var _this = _possibleConstructorReturn(this, (Toolbar.__proto__ || Object.getPrototypeOf(Toolbar)).call(this, props, context));
 
-    _this.state = {};
+    _this.state = {
+      currentSelectedElement: {}
+    };
     return _this;
   }
 
+  // shouldComponentUpdate(nextProps, nextState) {
+  //   return this.props.state.mode !== nextProps.state.mode ||
+  //     this.props.height !== nextProps.height ||
+  //     this.props.width !== nextProps.width ||
+  //     this.props.state.alterate !== nextProps.state.alterate ||
+  //     this.state.currentSelectedElement !== nextState.currentSelectedElement
+  //     ;
+  // }
+
   _createClass(Toolbar, [{
-    key: 'shouldComponentUpdate',
-    value: function shouldComponentUpdate(nextProps, nextState) {
-      return this.props.state.mode !== nextProps.state.mode || this.props.height !== nextProps.height || this.props.width !== nextProps.width || this.props.state.alterate !== nextProps.state.alterate;
+    key: 'catalogQuickSelect',
+    value: function catalogQuickSelect(element) {
+      // clear current snaped element
+      this.context.projectActions.rollback();
+      // deselect all elements before selecting a new tool
+      this.context.projectActions.unselectAll();
+      switch (element['prototype']) {
+        case 'lines':
+          this.context.linesActions.selectToolDrawingLine(element['name']);
+          break;
+        case 'items':
+          this.context.itemsActions.selectToolDrawingItem(element['name']);
+          break;
+        case 'holes':
+          this.context.holesActions.selectToolDrawingHole(element['name']);
+          break;
+      }
+
+      this.context.projectActions.pushLastSelectedCatalogElementToHistory(element);
     }
   }, {
     key: 'render',
     value: function render() {
+      var _this2 = this;
+
       var _props = this.props,
           state = _props.state,
           width = _props.width,
           height = _props.height,
           toolbarButtons = _props.toolbarButtons,
           allowProjectFileSupport = _props.allowProjectFileSupport,
+          catalog = _props.catalog,
           _context = this.context,
           projectActions = _context.projectActions,
           viewer3DActions = _context.viewer3DActions,
           translator = _context.translator;
 
-
       var mode = state.get('mode');
       var alterate = state.get('alterate');
+      var catalogList = catalog.elements;
+      var currentSelectedElement = [].concat(_toConsumableArray(state.get('selectedElementsHistory').values()))[0];
+      // this.setState({currentSelectedElement})
+      // let currentSelectedElement = []
       var alterateColor = alterate ? SharedStyle.MATERIAL_COLORS[500].orange : '';
+      // Catalog Quick select elements
+      var wallElement = catalogList['wall'];
+      var gateElement = catalogList['gate'];
+      var doorElement = catalogList['door'];
 
       var sorter = [{
         index: 0, condition: allowProjectFileSupport, dom: React.createElement(
@@ -192,6 +232,39 @@ var Toolbar = function (_Component) {
               return projectActions.openProjectConfigurator();
             } },
           React.createElement(MdSettings, null)
+        )
+      }, {
+        index: 9, condition: true, dom: React.createElement(
+          ToolbarButton,
+          {
+            active: [MODE_WAITING_DRAWING_LINE].includes(mode),
+            tooltip: 'Wall',
+            onClick: function onClick(e) {
+              return _this2.catalogQuickSelect(wallElement);
+            } },
+          React.createElement(GiBrickWall, null)
+        )
+      }, {
+        index: 10, condition: true, dom: React.createElement(
+          ToolbarButton,
+          {
+            active: !!([MODE_DRAWING_HOLE].includes(mode) && currentSelectedElement && currentSelectedElement.name === 'gate'),
+            tooltip: 'Gate',
+            onClick: function onClick(e) {
+              return _this2.catalogQuickSelect(gateElement);
+            } },
+          React.createElement(GiDungeonGate, null)
+        )
+      }, {
+        index: 11, condition: true, dom: React.createElement(
+          ToolbarButton,
+          {
+            active: !!([MODE_DRAWING_HOLE].includes(mode) && currentSelectedElement && currentSelectedElement.name === 'door'),
+            tooltip: 'Door',
+            onClick: function onClick(e) {
+              return _this2.catalogQuickSelect(doorElement);
+            } },
+          React.createElement(FaDoorOpen, null)
         )
       }];
 
